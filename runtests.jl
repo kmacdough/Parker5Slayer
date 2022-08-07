@@ -1,4 +1,4 @@
-include("fivebyfive.jl")
+include("parker_slayer.jl")
 
 @testset begin
     @testset "LetterSet" begin 

@@ -3,7 +3,7 @@ using DataStructures: DefaultDict
 using SplitApplyCombine: group, flatten
 using IterTools: product
 
-begin # struct LetterSet
+begin # LetterSet
     char_to_bit(c::Char) = 1 << (Int8(c) - Int8('a'))
     struct LetterSet
         bits::Int
@@ -27,7 +27,7 @@ begin # struct LetterSet
     Base.show(io::IO, ls::LetterSet) = print(io, "LetterSet($(ls.bits); \"$(String(to_letters(ls)))\")")
 end
 
-begin # structs Anagram, AnagramSet
+begin # Anagram, AnagramSet
     struct Anagram
         letters::LetterSet
         words::Vector{String}
@@ -46,8 +46,6 @@ begin # structs Anagram, AnagramSet
     no_overlap(a1, a2) = empty(intersect(a1.letters, a2.letters))
 end
 
-# raw_words = readlines("/usr/share/dict/words")
-
 function main()
     @info "Grabbing spellbook"
     raw_words = readlines(download("https://raw.githubusercontent.com/dwyl/english-words/master/words_alpha.txt"))
@@ -60,8 +58,8 @@ function main()
     milliparkers = stats.time / (32 * 24 * 60 * 60) * 1_000_000
     @info "Found $(length(phrases)) magic phrases in $milliparkers milliparkers ($(stats.time)s)"
 
-    CSV.write("word_sets.csv", DataFrame(phrases))
-    @info "Wrote results to word_sets.csv"
+    CSV.write("magic_phrases.csv", DataFrame(phrases))
+    @info "Wrote results to magic_phrases.csv"
 end
 
 function find_magic_phrases(word_list)
