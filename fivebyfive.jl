@@ -1,12 +1,7 @@
-using Underscores, Test
-using DataStructures: DefaultDict
-using SplitApplyCombine: group
-using Profile
+using Underscores, Test, SplitApplyCombine, DataStructures
+using IterTools
 
-A_TO_Z = ['a':'z';]
-
-begin
-    # could be cached
+begin # struct LetterSet
     char_to_bit(c::Char) = 1 << (Int8(c) - Int8('a'))
     # could we make this officially look like a set?
     struct LetterSet
@@ -20,12 +15,12 @@ begin
     Base.setdiff(ls1::LetterSet, ls2::LetterSet) = LetterSet(ls1.bits & ~ls2.bits)
     Base.length(ls::LetterSet) = count_ones(ls.bits)
     Base.empty(ls::LetterSet) = ls.bits == 0
-    
 
     # Sorting
     Base.isless(ls1::LetterSet, ls2::LetterSet) = ls1.bits < ls2.bits
 
     # Visualising
+    A_TO_Z = ['a':'z';]
     A_TO_Z_BITS = char_to_bit.(collect(A_TO_Z))
     to_letters(ls::LetterSet) = A_TO_Z[(A_TO_Z_BITS .& ls.bits) .> 0]
     Base.show(io::IO, ls::LetterSet) = print(io, "LetterSet($(ls.bits); \"$(String(to_letters(ls)))\")")
@@ -34,6 +29,7 @@ begin
         @testset "LetterSet" begin 
             LS = LetterSet
             @test LS("abc") == LS(7)
+            @test LetterSet("abc") == LetterSet(['a', 'b', 'c'])
             @test union(LS("abc"), LS("dce")) == LS("abcde")
             @test intersect(LS("abc"), LS("dce")) == LS("c")
             @test setdiff(LS("abc"), LS("dce")) == LS("ab")
@@ -46,93 +42,88 @@ begin
     end
 end
 
-# Type naming options:
-# AnagramGroup
-# AGSet
+begin # structs Anagram, AnagramSet
+    struct Anagram
+        letters::LetterSet
+        words::Vector{String}
+    end
+    Base.show(io::IO, a::Anagram) = print(io, "Anagram($(a.letters), $(length(a.words)) words)")
 
-LS = LetterSet
+    struct AnagramSet
+        # letters used by this anagram set
+        letters::LetterSet
+        # ways to build this AnagramSet from one Anagram and a smaller AnagramSet
+        sources::Vector{Pair{AnagramSet, Anagram}}
+    end
+    AnagramSet(letters::LetterSet) = AnagramSet(letters, [])
+    Base.show(io::IO, a::AnagramSet) = print(io, "AnagramSet($(a.letters), $(length(a.sources)) sources)")
 
-A_TO_Z_LETTER_SET = LS(A_TO_Z)
+    no_overlap(a1, a2) = empty(intersect(a1.letters, a2.letters))
+end
 
 # raw_words = readlines("/usr/share/dict/words")
 raw_words = readlines(download("https://raw.githubusercontent.com/dwyl/english-words/master/words_alpha.txt"))
-words = @_ raw_words |> filter(length(_) == 5, __) .|> lowercase |> unique
+words5 = @_ raw_words |> filter(length(_) == 5, __) .|> lowercase |> unique
 
-function find_spents(word_list)
-    swords = @_ LetterSet.(word_list) |> filter(length(_) == 5, __) |> sort
+anagrams = [Anagram(letters, words) for (letters, words) in pairs(group(LetterSet, words5 )) if length(letters) == 5]
 
-    sword_lookup = group(LetterSet, word_list)
-    swords = @_ LetterSet.(word_list) |> filter(length(_) == 5, __) |> sort
-    println("Found $(length(swords)) sets of length 1")
-
-    spair_lookup = DefaultDict{LS, Vector{Pair{LS, LS}}}([])
-    for (i, test_sword) in enumerate(swords)
-        for sword in swords[i+1:end]
-            if empty(intersect(test_sword, sword))
-                push!(spair_lookup[union(test_sword, sword)], (test_sword => sword))
+function find_anagram_sets(anagrams)
+    sort!(anagrams, by=x -> x.letters)
+    prev_anagram_sets = [AnagramSet(LetterSet(0))]
+    for N in 1:5
+        anagram_sets_by_letters = DefaultDict{LetterSet, AnagramSet}(AnagramSet, passkey=true)
+        a_i = 1
+        for prev_set in prev_anagram_sets
+            while a_i <= length(anagrams) && anagrams[a_i].letters < prev_set.letters; a_i += 1; end
+            for anagram in anagrams[a_i:end]
+                if no_overlap(prev_set, anagram)
+                    union_set = anagram_sets_by_letters[union(prev_set.letters, anagram.letters)]
+                    push!(union_set.sources, prev_set => anagram)
+                end
             end
         end
+        prev_anagram_sets = sort!(collect(values(anagram_sets_by_letters)), by=x -> x.letters)
+        println("Found $(length(prev_anagram_sets)) sets of length $(length(prev_anagram_sets[1].letters))")
     end
-    spairs = sort(collect(keys(spair_lookup)))
-    println("Found $(length(spairs)) sets of length 2")
-
-    striple_lookup = DefaultDict{LS, Vector{Pair{LS, LS}}}(Vector{Pair{LS, LS}})
-    s_i = 1
-    for test_spair in spairs
-        while s_i <= length(swords) && swords[s_i] < test_spair; s_i += 1; end
-        for sword in swords[s_i:end]
-            if empty(intersect(test_spair, sword))
-                push!(striple_lookup[union(test_spair, sword)], (test_spair => sword))
-            end
-        end
-    end
-    striples = sort(collect(keys(striple_lookup)))
-    println("Found $(length(striples)) sets of length 3")
-
-    squad_lookup = DefaultDict{LS, Vector{Pair{LS, LS}}}(Vector{Pair{LS, LS}})
-    s_i = 1
-    for test_striple in striples
-        while s_i <= length(swords) && swords[s_i] < test_striple; s_i += 1; end
-        for sword in swords[s_i:end]
-            if empty(intersect(test_striple, sword))
-                push!(squad_lookup[union(test_striple, sword)], (test_striple => sword))
-            end
-        end
-    end
-    squads = sort(collect(keys(squad_lookup)))
-    println("Found $(length(squads)) sets of length 4")
-
-    spent_lookup = DefaultDict{LS, Vector{Pair{LS, LS}}}(Vector{Pair{LS, LS}})
-    s_i = 1
-    for test_squad in squads
-        while s_i <= length(swords) && swords[s_i] < test_squad; s_i += 1; end
-        for sword in swords[s_i:end]
-            if empty(intersect(test_squad, sword))
-                push!(spent_lookup[union(test_squad, sword)], (test_squad => sword))
-            end
-        end
-    end
-    spents = sort(collect(keys(spent_lookup)))
-    println("Found $(length(spents)) sets of length 5")
-
-    (
-        swords=swords,
-        sword_lookup=sword_lookup,
-        spairs=spairs,
-        spair_lookup=spair_lookup,
-        striples=striples,
-        striple_lookup=striple_lookup,
-        squads=squads,
-        squad_lookup=squad_lookup,
-        spents=spents,
-        spent_lookup=spent_lookup
-    )
+    prev_anagram_sets
 end
 
-@time x = find_spents(words)
-# Found 10175 sets of length 1
-# Found 640023 sets of length 2
-# Found 1272060 sets of length 3
-# Found 54626 sets of length 4
-# Found 11 sets of length 5
-# 73.721482 seconds (3.79 G allocations: 73.120 GiB, 8.02% gc time, 0.52% compilation time)
+@time anagram_sets = find_anagram_sets(anagrams)
+# Found 5977 sets of length 5
+# Found 640023 sets of length 10
+# Found 1272060 sets of length 15
+# Found 54626 sets of length 20
+# Found 11 sets of length 25
+#  12.283061 seconds (13.34 M allocations: 23.023 GiB, 29.51% gc time, 0.69% compilation time)
+
+#Probably has a split-apply-combine functino
+function expand_anagram_set(anagram_set::AnagramSet)::Vector{Vector{Anagram}}
+    if isempty(anagram_set.sources)
+        [Anagram[]]
+    else
+        map(anagram_set.sources) do (subset, anagram)
+            [vcat(expanded, [anagram]) for expanded in expand_anagram_set(subset)]
+        end |> flatten
+    end
+end
+
+# anagram_seqs = expand_anagram_set(anagram_sets[1])
+
+expand_anagram_sequence(seq) = vec(collect(IterTools.product([anagram.words for anagram in seq]...)))
+# expand_anagram_sequence(anagram_seqs[1])
+
+function expand_all(anagram_sets)
+    all_word_sets = NTuple{5, String}[]
+    for anagram_set in anagram_sets
+        # println("Expanding set $anagram_set")
+        anagram_sequences = expand_anagram_set(anagram_set)
+        for anagram_seq in anagram_sequences
+            # println("Expanding sequence $anagram_seq")
+            word_sets = expand_anagram_sequence(anagram_seq)
+            append!(all_word_sets, word_sets)
+        end
+    end
+    all_word_sets
+end
+
+expanded = expand_all(anagram_sets)
