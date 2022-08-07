@@ -5,7 +5,6 @@ using IterTools: product
 
 begin # struct LetterSet
     char_to_bit(c::Char) = 1 << (Int8(c) - Int8('a'))
-    # could we make this officially look like a set?
     struct LetterSet
         bits::Int
     end
@@ -26,22 +25,6 @@ begin # struct LetterSet
     A_TO_Z_BITS = char_to_bit.(collect(A_TO_Z))
     to_letters(ls::LetterSet) = A_TO_Z[(A_TO_Z_BITS .& ls.bits) .> 0]
     Base.show(io::IO, ls::LetterSet) = print(io, "LetterSet($(ls.bits); \"$(String(to_letters(ls)))\")")
-
-    if false # Inline tests
-        @testset "LetterSet" begin 
-            LS = LetterSet
-            @test LS("abc") == LS(7)
-            @test LetterSet("abc") == LetterSet(['a', 'b', 'c'])
-            @test union(LS("abc"), LS("dce")) == LS("abcde")
-            @test intersect(LS("abc"), LS("dce")) == LS("c")
-            @test setdiff(LS("abc"), LS("dce")) == LS("ab")
-            @test setdiff(LS("abc"), LS("cba")) == LS("")
-            @test empty(LS(""))
-            @test length("a") == 1
-            @test length("five") == 4
-            @test to_letters(LetterSet("cab")) == collect("abc")
-        end
-    end
 end
 
 begin # structs Anagram, AnagramSet
@@ -66,19 +49,19 @@ end
 # raw_words = readlines("/usr/share/dict/words")
 
 function main()
-    println("Grabbing spellbook")
+    @info "Grabbing spellbook"
     raw_words = readlines(download("https://raw.githubusercontent.com/dwyl/english-words/master/words_alpha.txt"))
-    println("Selecting suitable magic words")
+    @info "Selecting suitable magic words"
     words5 = unique([lowercase(w) for w in raw_words if length(w) == 5])
 
-    println("Searching the universe for magic phrases")
+    @info "Searching the universe for magic phrases"
     stats = @timed (phrases = find_magic_phrases(words5))
 
     milliparkers = stats.time / (32 * 24 * 60 * 60) * 1_000_000
-    println("Found $(length(phrases)) magic phrases in $milliparkers milliparkers ($(stats.time)s)")
+    @info "Found $(length(phrases)) magic phrases in $milliparkers milliparkers ($(stats.time)s)"
 
     CSV.write("word_sets.csv", DataFrame(phrases))
-    println("Wrote results to word_sets.csv")
+    @info "Wrote results to word_sets.csv"
 end
 
 function find_magic_phrases(word_list)
@@ -104,7 +87,7 @@ function find_anagram_sets(anagrams)
             end
         end
         prev_anagram_sets = sort!(collect(values(anagram_sets_by_letters)), by=x -> x.letters)
-        println("Found $(length(prev_anagram_sets)) sets of length $(length(prev_anagram_sets[1].letters))")
+        @info "Found $(length(prev_anagram_sets)) sets of length $N"
     end
     prev_anagram_sets
 end
@@ -112,10 +95,10 @@ end
 function expand_all(anagram_sets)
     all_word_sets = NTuple{5, String}[]
     for anagram_set in anagram_sets
-        # println("Expanding set $anagram_set")
+        @debug "Expanding set $anagram_set"
         anagram_sequences = expand_anagram_set_to_sequences(anagram_set)
         for anagram_seq in anagram_sequences
-            # println("Expanding sequence $anagram_seq")
+            @debug "Expanding sequence $anagram_seq"
             word_sets = expand_anagram_sequence(anagram_seq)
             append!(all_word_sets, word_sets)
         end
@@ -123,7 +106,7 @@ function expand_all(anagram_sets)
     all_word_sets
 end
 
-#Probably has a split-apply-combine functino
+# Probably can be simplified with a SplitApplyCombine function
 function expand_anagram_set_to_sequences(anagram_set::AnagramSet)::Vector{Vector{Anagram}}
     if isempty(anagram_set.sources)
         [Anagram[]]
@@ -136,4 +119,6 @@ end
 
 expand_anagram_sequence(seq) = vec(collect(product([anagram.words for anagram in seq]...)))
 
-main()
+if abspath(PROGRAM_FILE) == @__FILE__
+    main()
+end
