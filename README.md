@@ -25,18 +25,22 @@ Though I believe this feat to be surmountable, I must pass on the sword to anoth
 
 ## Understanding the code
 
-This code might be a little hard to follow, especially for those new to Julia. It makes use of Julia's custom type system, allowing me to store Letter Sets as integers. This has 2 main benefits:
+This program takes a very similar approach to Matt's brute force, but attempts to deduplicate as much as possible.
 
- * super fast set operations using basic bitwise operations e.g.
-   * "abc" ~ 7                  (0b0000000000000111)
-   * "cde" ~ 28                 (0b0000000000011100)
+ * Not only does it squash words into their Anagrams, we continue to squash anagrams as we combine them.
+ * It also uses a strict ordering of anagrams & only squashes anagrams in that order, to guarantee there is only one path for squashing a particular set of anagrams.
+
+This program also makes use of Julia's custom type system, allowing me to store Letter Sets as integers, using bits to represent the presence of a given letter. This has 2 main benefits:
+
+ * crazy fast set operations using basic bitwise operations e.g.
+   * "abc" ~ 7                  (.....111)
+   * "cde" ~ 28                 (...111..)
    * "abc" == "cab"
-   * "abc" | "cde" == "abcde"   (0b0000000000011111)
-   * "abc" & "cde" == "c"       (0b0000000000000100)
- * Natural ordering for anagrams, treating bits as an Integer.
-   * This is crucial for avoiding duplicates, cutting the search space ENORMOUSLY
-   * For the particular choices I made, it's ordered by the "largest" letter
-     * NOTE order is thrown out in set form, I write them in aphabetic order here for conveience)
+   * "abc" | "cde" == "abcde"   (...11111)
+   * "abc" & "cde" == "c"       (.....1..)
+ * It naturally gives anagrams an order by treating the "bits" as an integer.
+   * The exact order doesn't matter, as long as it's stable, but my implementation orders anagrams by the "largest" letter.
+   * This behaves correctly, even as we squash anagrams together
    * e.g.
      * "abc" < "cde"
      * "bc" < "az"
