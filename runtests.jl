@@ -3,8 +3,8 @@ include("parker_slayer.jl")
 @testset begin
     @testset "LetterSet" begin 
         LS = LetterSet
-        @test LS("abc") == LS(7)
-        @test LetterSet("abc") == LetterSet(['a', 'b', 'c'])
+        @test LS("abc") == LS(UInt(7))
+        @test LS("abc") == LS(['a', 'b', 'c'])
         @test intersect(LS("abc"), LS("dce")) == LS("c")
         @test union(LS("abc"), LS("dce")) == LS("abcde")
         @test setdiff(LS("abc"), LS("dce")) == LS("ab")
@@ -14,7 +14,7 @@ include("parker_slayer.jl")
         @test length("five") == 4
         @test LS("abc") < LS("cde")
         @test LS("bc") < LS("aaz")
-        @test to_letters(LetterSet("cab")) == collect("abc")
+        @test to_letters(LS("cab")) == collect("abc")
     end
 
     @testset "no_overlap" begin
@@ -46,7 +46,7 @@ include("parker_slayer.jl")
     end
 
     @testset "expand_anagram_sequence" begin
-        A(words) = Anagram(LetterSet(0), words)
+        A(words) = Anagram(LetterSet(""), words)
         @test ==(
             Set(expand_anagram_sequence([A(["a"]), A(["b"])])),
             Set([("a", "b")])

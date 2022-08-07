@@ -3,11 +3,16 @@ using DataStructures: DefaultDict
 using SplitApplyCombine: group, flatten
 using IterTools: product
 
+##########################################################
+# Data Structures
+##########################################################
+
 begin # LetterSet
-    char_to_bit(c::Char) = 1 << (Int8(c) - Int8('a'))
+    char_to_bit(c::Char) = UInt(1 << (Int8(c) - Int8('a')))
     struct LetterSet
-        bits::Int
+        bits::UInt
     end
+    LetterSet(bits::Integer) = LetterSet(bits)
     LetterSet(chars) = LetterSet(sum(char_to_bit.(collect(chars))))
 
     # Set-like operations
@@ -21,8 +26,8 @@ begin # LetterSet
     Base.isless(ls1::LetterSet, ls2::LetterSet) = ls1.bits < ls2.bits
 
     # Visualising
-    A_TO_Z = ['a':'z';]
-    A_TO_Z_BITS = char_to_bit.(collect(A_TO_Z))
+    const A_TO_Z = ['a':'z';]
+    const A_TO_Z_BITS = char_to_bit.(collect(A_TO_Z))
     to_letters(ls::LetterSet) = A_TO_Z[(A_TO_Z_BITS .& ls.bits) .> 0]
     Base.show(io::IO, ls::LetterSet) = print(io, "LetterSet($(ls.bits); \"$(String(to_letters(ls)))\")")
 end
@@ -46,6 +51,10 @@ begin # Anagram, AnagramSet
     no_overlap(a1, a2) = empty(intersect(a1.letters, a2.letters))
 end
 
+##########################################################
+# Main
+##########################################################
+
 function main()
     @info "Grabbing spellbook"
     raw_words = readlines(download("https://raw.githubusercontent.com/dwyl/english-words/master/words_alpha.txt"))
@@ -66,12 +75,16 @@ function find_magic_phrases(word_list)
     anagrams = [Anagram(letters, words) for (letters, words) in pairs(group(LetterSet, word_list))]
     anagrams = [a for a in anagrams if length(a.letters) == 5]
     anagram_sets = find_anagram_sets(anagrams)
-    expanded = expand_all(anagram_sets)
+    expand_all(anagram_sets)
 end
+
+##########################################################
+# Building AnagramSets 
+##########################################################
 
 function find_anagram_sets(anagrams)
     sort!(anagrams, by=x -> x.letters)
-    prev_anagram_sets = [AnagramSet(LetterSet(0))]
+    prev_anagram_sets = [AnagramSet(LetterSet(""))]
     for N in 1:5
         anagram_sets_by_letters = DefaultDict{LetterSet, AnagramSet}(AnagramSet, passkey=true)
         a_i = 1
@@ -89,6 +102,10 @@ function find_anagram_sets(anagrams)
     end
     prev_anagram_sets
 end
+
+##########################################################
+# Expanding anagram sets into phrases
+##########################################################
 
 function expand_all(anagram_sets)
     all_word_sets = NTuple{5, String}[]
@@ -116,6 +133,10 @@ function expand_anagram_set_to_sequences(anagram_set::AnagramSet)::Vector{Vector
 end
 
 expand_anagram_sequence(seq) = vec(collect(product([anagram.words for anagram in seq]...)))
+
+##########################################################
+# Script startup when run as main
+##########################################################
 
 if abspath(PROGRAM_FILE) == @__FILE__
     main()
