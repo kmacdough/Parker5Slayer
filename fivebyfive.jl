@@ -1,6 +1,7 @@
 using Underscores, Test
 using DataStructures: DefaultDict
 using SplitApplyCombine: group
+using Profile
 
 A_TO_Z = ['a':'z';]
 
@@ -45,6 +46,10 @@ begin
     end
 end
 
+# Type naming options:
+# AnagramGroup
+# AGSet
+
 LS = LetterSet
 
 A_TO_Z_LETTER_SET = LS(A_TO_Z)
@@ -54,9 +59,11 @@ raw_words = readlines(download("https://raw.githubusercontent.com/dwyl/english-w
 words = @_ raw_words |> filter(length(_) == 5, __) .|> lowercase |> unique
 
 function find_spents(word_list)
-    sword_lookup = group(LetterSet, word_list)
     swords = @_ LetterSet.(word_list) |> filter(length(_) == 5, __) |> sort
 
+    sword_lookup = group(LetterSet, word_list)
+    swords = @_ LetterSet.(word_list) |> filter(length(_) == 5, __) |> sort
+    println("Found $(length(swords)) sets of length 1")
 
     spair_lookup = DefaultDict{LS, Vector{Pair{LS, LS}}}([])
     for (i, test_sword) in enumerate(swords)
@@ -66,13 +73,12 @@ function find_spents(word_list)
             end
         end
     end
-
     spairs = sort(collect(keys(spair_lookup)))
+    println("Found $(length(spairs)) sets of length 2")
 
     striple_lookup = DefaultDict{LS, Vector{Pair{LS, LS}}}(Vector{Pair{LS, LS}})
     s_i = 1
     for test_spair in spairs
-        global s_i
         while s_i <= length(swords) && swords[s_i] < test_spair; s_i += 1; end
         for sword in swords[s_i:end]
             if empty(intersect(test_spair, sword))
@@ -81,11 +87,11 @@ function find_spents(word_list)
         end
     end
     striples = sort(collect(keys(striple_lookup)))
+    println("Found $(length(striples)) sets of length 3")
 
     squad_lookup = DefaultDict{LS, Vector{Pair{LS, LS}}}(Vector{Pair{LS, LS}})
     s_i = 1
     for test_striple in striples
-        global s_i
         while s_i <= length(swords) && swords[s_i] < test_striple; s_i += 1; end
         for sword in swords[s_i:end]
             if empty(intersect(test_striple, sword))
@@ -94,11 +100,11 @@ function find_spents(word_list)
         end
     end
     squads = sort(collect(keys(squad_lookup)))
+    println("Found $(length(squads)) sets of length 4")
 
     spent_lookup = DefaultDict{LS, Vector{Pair{LS, LS}}}(Vector{Pair{LS, LS}})
     s_i = 1
     for test_squad in squads
-        global s_i
         while s_i <= length(swords) && swords[s_i] < test_squad; s_i += 1; end
         for sword in swords[s_i:end]
             if empty(intersect(test_squad, sword))
@@ -106,9 +112,8 @@ function find_spents(word_list)
             end
         end
     end
-
-    # Should overcount until we fix sorting (probably by 2x)
     spents = sort(collect(keys(spent_lookup)))
+    println("Found $(length(spents)) sets of length 5")
 
     (
         swords=swords,
@@ -123,3 +128,11 @@ function find_spents(word_list)
         spent_lookup=spent_lookup
     )
 end
+
+@time x = find_spents(words)
+# Found 10175 sets of length 1
+# Found 640023 sets of length 2
+# Found 1272060 sets of length 3
+# Found 54626 sets of length 4
+# Found 11 sets of length 5
+# 73.721482 seconds (3.79 G allocations: 73.120 GiB, 8.02% gc time, 0.52% compilation time)
