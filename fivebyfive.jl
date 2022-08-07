@@ -1,5 +1,7 @@
-using Underscores, Test, SplitApplyCombine, DataStructures
-using IterTools
+using Test, DataFrames, CSV
+using DataStructures: DefaultDict
+using SplitApplyCombine: group, flatten
+using IterTools: product
 
 begin # struct LetterSet
     char_to_bit(c::Char) = 1 << (Int8(c) - Int8('a'))
@@ -62,10 +64,29 @@ begin # structs Anagram, AnagramSet
 end
 
 # raw_words = readlines("/usr/share/dict/words")
-raw_words = readlines(download("https://raw.githubusercontent.com/dwyl/english-words/master/words_alpha.txt"))
-words5 = @_ raw_words |> filter(length(_) == 5, __) .|> lowercase |> unique
 
-anagrams = [Anagram(letters, words) for (letters, words) in pairs(group(LetterSet, words5 )) if length(letters) == 5]
+function main()
+    println("Grabbing spellbook")
+    raw_words = readlines(download("https://raw.githubusercontent.com/dwyl/english-words/master/words_alpha.txt"))
+    println("Selecting suitable magic words")
+    words5 = unique([lowercase(w) for w in raw_words if length(w) == 5])
+
+    println("Searching the universe for magic phrases")
+    stats = @timed (phrases = find_magic_phrases(words5))
+
+    milliparkers = stats.time / (32 * 24 * 60 * 60) * 1_000_000
+    println("Found $(length(phrases)) magic phrases in $milliparkers milliparkers ($(stats.time)s)")
+
+    CSV.write("word_sets.csv", DataFrame(phrases))
+    println("Wrote results to word_sets.csv")
+end
+
+function find_magic_phrases(word_list)
+    anagrams = [Anagram(letters, words) for (letters, words) in pairs(group(LetterSet, word_list))]
+    anagrams = [a for a in anagrams if length(a.letters) == 5]
+    anagram_sets = find_anagram_sets(anagrams)
+    expanded = expand_all(anagram_sets)
+end
 
 function find_anagram_sets(anagrams)
     sort!(anagrams, by=x -> x.letters)
@@ -88,35 +109,11 @@ function find_anagram_sets(anagrams)
     prev_anagram_sets
 end
 
-@time anagram_sets = find_anagram_sets(anagrams)
-# Found 5977 sets of length 5
-# Found 640023 sets of length 10
-# Found 1272060 sets of length 15
-# Found 54626 sets of length 20
-# Found 11 sets of length 25
-#  12.283061 seconds (13.34 M allocations: 23.023 GiB, 29.51% gc time, 0.69% compilation time)
-
-#Probably has a split-apply-combine functino
-function expand_anagram_set(anagram_set::AnagramSet)::Vector{Vector{Anagram}}
-    if isempty(anagram_set.sources)
-        [Anagram[]]
-    else
-        map(anagram_set.sources) do (subset, anagram)
-            [vcat(expanded, [anagram]) for expanded in expand_anagram_set(subset)]
-        end |> flatten
-    end
-end
-
-# anagram_seqs = expand_anagram_set(anagram_sets[1])
-
-expand_anagram_sequence(seq) = vec(collect(IterTools.product([anagram.words for anagram in seq]...)))
-# expand_anagram_sequence(anagram_seqs[1])
-
 function expand_all(anagram_sets)
     all_word_sets = NTuple{5, String}[]
     for anagram_set in anagram_sets
         # println("Expanding set $anagram_set")
-        anagram_sequences = expand_anagram_set(anagram_set)
+        anagram_sequences = expand_anagram_set_to_sequences(anagram_set)
         for anagram_seq in anagram_sequences
             # println("Expanding sequence $anagram_seq")
             word_sets = expand_anagram_sequence(anagram_seq)
@@ -126,4 +123,17 @@ function expand_all(anagram_sets)
     all_word_sets
 end
 
-expanded = expand_all(anagram_sets)
+#Probably has a split-apply-combine functino
+function expand_anagram_set_to_sequences(anagram_set::AnagramSet)::Vector{Vector{Anagram}}
+    if isempty(anagram_set.sources)
+        [Anagram[]]
+    else
+        map(anagram_set.sources) do (subset, anagram)
+            [vcat(expanded, [anagram]) for expanded in expand_anagram_set_to_sequences(subset)]
+        end |> flatten
+    end
+end
+
+expand_anagram_sequence(seq) = vec(collect(product([anagram.words for anagram in seq]...)))
+
+main()
