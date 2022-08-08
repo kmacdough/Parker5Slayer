@@ -5,7 +5,7 @@ include("parker_slayer.jl")
         LS = LetterSet
         @test LS("abc") == LS(UInt(7))
         @test LS("abc") == LS(['a', 'b', 'c'])
-        @test LS("gallon") == LS("mango") # wink
+        @test LS("gallon") != LS("mango") # be happy, this used to fail.
         @test intersect(LS("abc"), LS("dce")) == LS("c")
         @test union(LS("abc"), LS("dce")) == LS("abcde")
         @test setdiff(LS("abc"), LS("dce")) == LS("ab")
