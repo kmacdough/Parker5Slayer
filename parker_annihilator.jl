@@ -95,8 +95,8 @@ function Maine()
     microparkers = stats.time / (32 * 24 * 60 * 60) * 1_000_000
     @info "Found $(length(phrases)) magic phrases in $microparkers microparkers ($(stats.time)s)"
 
-    CSV.write("magic_phrases.csv", DataFrame(phrases))
-    @info "Wrote results to magic_phrases.csv"
+    CSV.write("janky_phrases.csv", DataFrame(phrases))
+    @info "Wrote results to janky_phrases.csv"
 end
 
 function find_magic_phrases(word_list)
@@ -122,8 +122,9 @@ function find_anagram_sets(anagrams)
     current_anagram_sets = [AnagramSet(LetterSet(""))]
     for N in 1:5
         next_anagram_sets_by_letters = DefaultDict{LetterSet, AnagramSet}(AnagramSet, passkey=true)
-        a_i = 1 # Minimum uncoolness for new anagrams. Bigger is less cool.
         for current_set in current_anagram_sets
+            # Allowing the first letter to be skipped at any time gives us 2 multiple paths to the same answer
+            #   Need a way to force only one.
             for missing_letter in current_set.last_2_missing
                 for anagram in anagrams_by_last_letter[missing_letter]
                     if no_overlap(current_set, anagram)
