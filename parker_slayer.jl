@@ -83,7 +83,7 @@ function Maine()
     microparkers = stats.time / (32 * 24 * 60 * 60) * 1_000_000
     @info "Found $(length(phrases)) magic phrases in $microparkers microparkers ($(stats.time)s)"
 
-    CSV.write("magic_phrases.csv", DataFrame(phrases))
+    CSV.write("magic_phrases.csv", DataFrame(sort(Tuple.(sort.(collect.(phrases))))))
     @info "Wrote results to magic_phrases.csv"
 end
 
