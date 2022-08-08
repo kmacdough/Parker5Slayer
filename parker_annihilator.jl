@@ -90,8 +90,8 @@ function Maine()
     microparkers = stats.time / (32 * 24 * 60 * 60) * 1_000_000
     @info "Found $(length(phrases)) magic phrases in $microparkers microparkers ($(stats.time)s)"
 
-    CSV.write("janky_phrases.csv", DataFrame(phrases))
-    @info "Wrote results to janky_phrases.csv"
+    CSV.write("magic_phrases.csv", DataFrame(phrases))
+    @info "Wrote results to magic_phrases.csv"
 end
 
 function find_magic_phrases(word_list)
@@ -153,10 +153,6 @@ function find_anagram_sets(anagrams)
     end
     current_anagram_sets_skipped
 end
-
-
-
-
 
 ##########################################################
 # Expanding anagram sets into phrases
