@@ -41,11 +41,7 @@ begin # LetterSet
     ALPHABET_MASK = 0x0000000003ffffff
     find_last_letter(letters::LetterSet) = 64 - leading_zeros(letters.bits)
     find_last_missing(letters::LetterSet) = 64 - leading_zeros(letters.bits ⊻ ALPHABET_MASK)
-    function last_2_missing(letters::LetterSet)
-        last_missing = find_last_missing(letters)
-        next_last_missing = find_last_missing(LetterSet(letters.bits + (1 << (last_missing - 1))))
-        (last_missing, next_last_missing)
-    end
+    fill_last_missing(letters::LetterSet) = LetterSet(letters.bits + (1 << (find_last_missing(letters) - 1)))
 end
 
 begin # Anagram, AnagramSet
@@ -69,9 +65,8 @@ begin # Anagram, AnagramSet
     struct AnagramSet
         letters::LetterSet
         sources::Vector{Pair{AnagramSet, Anagram}}
-        last_2_missing::Tuple{Int, Int}
     end
-    AnagramSet(letters::LetterSet) = AnagramSet(letters, [], last_2_missing(letters))
+    AnagramSet(letters::LetterSet) = AnagramSet(letters, [])
     Base.show(io::IO, a::AnagramSet) = print(io, "AnagramSet($(a.letters), $(length(a.sources)) sources)")
 
     # Takes either Anagrams or AnagramSets or a combination of both and checks for overlapping letters
@@ -120,26 +115,43 @@ function find_anagram_sets(anagrams)
     anagrams_by_last_letter = group(find_last_letter, anagrams)
     # Everyone likes a rags-to-riches story so we'll start from expactly one nothing.
     current_anagram_sets = [AnagramSet(LetterSet(""))]
+    current_anagram_sets_skipped = AnagramSet[AnagramSet(LetterSet("z"))]
     for N in 1:5
         next_anagram_sets_by_letters = DefaultDict{LetterSet, AnagramSet}(AnagramSet, passkey=true)
+        next_anagram_sets_by_letters_skipped = DefaultDict{LetterSet, AnagramSet}(AnagramSet, passkey=true)
         for current_set in current_anagram_sets
-            # Allowing the first letter to be skipped at any time gives us 2 multiple paths to the same answer
-            #   Need a way to force only one.
-            for missing_letter in current_set.last_2_missing
-                for anagram in anagrams_by_last_letter[missing_letter]
-                    if no_overlap(current_set, anagram)
-                        union_letters = union(current_set.letters, anagram.letters)
-                        union_set = next_anagram_sets_by_letters[union_letters]
-                        push!(union_set.sources, current_set => anagram)
-                    end
+            missing_letter = find_last_missing(current_set.letters)
+            for anagram in anagrams_by_last_letter[missing_letter]
+                if no_overlap(current_set, anagram)
+                    # try not skiping new last letter
+                    union_letters = union(current_set.letters, anagram.letters)
+                    union_set = next_anagram_sets_by_letters[union_letters]
+                    push!(union_set.sources, current_set => anagram)
+                    # try skiping new last letter
+                    union_letters_skipped = fill_last_missing(union_letters)
+                    union_set_skipped = next_anagram_sets_by_letters_skipped[union_letters_skipped]
+                    push!(union_set_skipped.sources, current_set => anagram)
+                end
+            end
+        end
+        for current_set_skipped in current_anagram_sets_skipped
+            missing_letter = find_last_missing(current_set_skipped.letters)
+            for anagram in anagrams_by_last_letter[missing_letter]
+                if no_overlap(current_set_skipped, anagram)
+                    # we've already skipped a letter, so no choices here
+                    union_letters_skipped = union(current_set_skipped.letters, anagram.letters)
+                    union_set_skipped = next_anagram_sets_by_letters_skipped[union_letters_skipped]
+                    push!(union_set_skipped.sources, current_set_skipped => anagram)
                 end
             end
         end
         # Maintain anagram elitism. Coolest AnagramSets go first.
-        current_anagram_sets = sort!(collect(values(next_anagram_sets_by_letters)), by=x -> x.letters)
-        @info "Found $(length(current_anagram_sets)) sets of length $N"
+        # eletism should be optional here?
+        current_anagram_sets = collect(values(next_anagram_sets_by_letters))
+        current_anagram_sets_skipped = collect(values(next_anagram_sets_by_letters_skipped))
+        @info "Found $(length(current_anagram_sets)) (no skips) + $(length(current_anagram_sets_skipped)) (with skips) of length $N"
     end
-    current_anagram_sets
+    current_anagram_sets_skipped
 end
 
 
