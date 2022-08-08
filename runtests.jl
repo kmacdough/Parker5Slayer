@@ -1,3 +1,4 @@
+using Test
 include("parker_slayer.jl")
 
 @testset begin
