@@ -21,7 +21,8 @@ Though I believe this feat to be surmountable, I must pass on the sword to anoth
    * I installed 1.8.0rc3 for M1 mac, since earlier builds do not run on M1 chips, but should run fine on 1.7.3
  * `git clone git@github.com:kmacdough/Parker5Slayer.git`
  * `cd Parker5Slayer`
- * `julia fivebyfive.jl`
+ * `julia --project=. parker_slayer.jl`
+   * NOTE: Since julia is JIT compiled, may be slow the first time it is run, while Julia compiles things
 
 ## Understanding the code
 
