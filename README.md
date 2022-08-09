@@ -22,7 +22,7 @@ Though I believe this feat to be surmountable, I must pass on the sword to anoth
  * `git clone git@github.com:kmacdough/Parker5Slayer.git`
  * `cd Parker5Slayer`
  * `julia --project=. parker_slayer.jl`
-   * NOTE: Since julia is JIT compiled, may be slow the first time it is run, while Julia compiles things
+   * NOTE: Since julia is JIT compiled, may be slow the first time it is run, while Julia fetches packages and compiles things
 
 ## Understanding the code
 
